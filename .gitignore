@@ -93,3 +93,6 @@ dashboard/supabase/.temp/
 # Python bytecode (the brief/ and curriculum/ packages)
 __pycache__/
 *.pyc
+
+# Internal research notes (never committed — see docs/internal/)
+docs/internal/
