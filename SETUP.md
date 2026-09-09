@@ -366,6 +366,34 @@ node bot/workers/stale-session.worker.js
 
 ---
 
+## Sharing Usage Stats (Optional, Off by Default)
+
+`rumi setup` asks whether you are comfortable sharing basic usage stats with the project. The prompt reads
+`[Y/n]`, so pressing Enter accepts; answering `n` declines. Declining changes nothing about how Rumi works,
+and nothing is ever sent unless you accept. If you configure by hand instead of running the wizard, the
+default is the opposite: a blank `RUMI_TELEMETRY` sends nothing.
+
+If you say yes, your deployment posts three numbers once a day — how many teachers are registered, how many
+were active that week, and how many lesson plans were made in the last 30 days — plus a random ID for the
+deployment, the version you run, and which features you have switched on.
+
+**Nothing about any individual is ever sent.** No names, no phone numbers, no teacher or student records, no
+message content, no lesson plans, no recordings, no scores, no API keys. The full outbound payload is one
+function you can read: `buildPayload` in `bot/shared/utils/telemetry.js`.
+
+Two keys in `.env` control it, and **both** must be set for anything to be sent:
+
+| Key | Meaning |
+|-----|---------|
+| `RUMI_TELEMETRY` | `on` to share, `off` or blank to stay quiet |
+| `RUMI_DEPLOYMENT_ID` | a random UUID generated when you say yes; identifies the deployment and nothing else |
+| `RUMI_TELEMETRY_URL` | optional — point the daily push at your own receiver instead |
+
+To turn it off at any time, set `RUMI_TELEMETRY=off` and restart. To become a brand-new deployment, delete
+`RUMI_DEPLOYMENT_ID` as well.
+
+---
+
 ## Adding Features
 
 There are **no tiers** — each feature turns on the moment its key(s) are present in your environment, and
