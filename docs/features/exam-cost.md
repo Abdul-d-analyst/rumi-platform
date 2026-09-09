@@ -13,7 +13,7 @@ Cost Compass answers both in one WhatsApp reply. It is deliberately **not** a ge
 1. **A parent messages a command** (or just asks in plain language — see below).
 2. **`exam-cost-trigger.js` parses it** — level, subject count, boards, city. A pure module, the same shape as the homework and edit-class triggers.
 3. **`exam-cost.service.js` costs it** from `bot/shared/data/exam-fees.json`: per-subject fee × subjects, plus each fixed fee, plus the late-entry surcharge if asked.
-4. **Rumi replies** with one plain-text block per board — every line itemised, cheapest 2-year total first, `as_of` and the estimate warning always visible.
+4. **Rumi replies** with one plain-text block per board — every line itemised, cheapest 2-year total first, `as_of` and the estimate warning always visible. A board whose fee the dataset doesn't publish is named as such, with its notes, and never priced (see the honesty rules below).
 5. **Deadlines** come from `bot/shared/data/exam-deadlines.json`, sorted soonest-first, with anything inside 21 days flagged as closing soon.
 6. **Opt-in reminders** land 14 days and 3 days before a deadline, weekends and evenings only.
 
@@ -59,9 +59,29 @@ bot/shared/data/exam-fees.json       # boards, per-subject fees, fixed fees, lat
 bot/shared/data/exam-deadlines.json  # board, session, stage, date, fee_impact, source, confidence
 ```
 
-Both carry a top-level `as_of`. **The shipped files are fixtures** — `"as_of": "FIXTURE"` — with realistic-looking placeholder amounts, and every reply says so out loud while that is true. Drop in a real dataset (same schema, `as_of` set to a real `YYYY-MM-DD`) and the flagging turns itself off.
+Point `EXAM_COST_DATA_DIR` at another directory (containing both files, same schema) to run a different dataset without editing the shipped ones — another country's boards, say. Precedence is `useDataDir(dir)` → `EXAM_COST_DATA_DIR` → the shipped default. The test suites use `useDataDir()` to pin the arithmetic to a frozen fixture at `tests/exam-cost/fixtures/`, so refreshing the real data can never turn the maths tests red for the wrong reason; `tests/exam-cost/exam-cost-live-data.test.js` is the one suite that deliberately reads the live files.
+
+Both datasets carry a top-level `as_of`. The literal string `FIXTURE` means placeholder data, and every reply then says so out loud; a real `YYYY-MM-DD` turns that flagging off.
 
 Fee schedules change every exam session and are not published cleanly enough to scrape, so this needs a real **manual update cadence**, not a one-time load. A stale cost tool loses a parent's trust faster than no tool at all.
+
+## Honesty rules — what happens when the data has holes
+
+The real Pakistani data is **full** of holes, and they are not going away: British Council publishes private-candidate fees only inside a login-gated portal, three BISE boards publish nothing machine-readable (one only in a non-Unicode Urdu PDF), and **AKU-EB does not charge per subject at all** — it charges one flat fee per subject *group*, so no single number can populate a per-subject schema without producing a wrong total.
+
+So the service is built around five rules, each with tests:
+
+1. **A `null` per-subject fee is never zero.** The board comes back `supported: false`, `reason: 'fee_not_published'`, and the reply says so — with a ~200-character excerpt of the board's own `notes`, which is exactly where AKU-EB's real group prices live. Notes are also surfaced when a board doesn't list the level at all (`reason: 'level_not_offered'`), because a parent who asked about AKU-EB still deserves to learn how AKU-EB prices.
+
+   That excerpt is **money-first, not head-first** (`notesExcerpt()`): it finds the first real PKR amount, rewinds to the start of its clause, and takes the window from there, marking it with a leading `…`. AKU-EB forced this — its confirmed group prices sit about 1,100 characters into the note, behind a paragraph of provenance, so a head-trim would have handed the parent the sourcing story and none of the prices. With no amount anywhere in a note, it falls back to the head.
+2. **Only boards with a real number are ranked or compared.** Uncostable boards keep dataset order and print no total.
+3. **When no board has a number**, the reply says `no honest total to give` and points at the web calculator — <https://oyekamal.github.io/homeschooling-pakistan/cost/> — instead of implying an answer.
+4. **A `null` fixed-fee or late-surcharge amount is skipped**, and an unpublished late surcharge becomes a stated caveat (`⚠️ Late-entry surcharge amount not published`) rather than a silent `+0`.
+5. **A deadline with a `null` date is dropped**, never rendered as `Invalid Date`; a row whose `confidence` is `estimated` is tagged `(estimated)` on its face. `fee_impact` is a number in the fixture and a prose sentence in the real data — whichever arrived is rendered, and neither is invented.
+
+The estimate/`as_of` footer (and the calculator link) is reserved out of the 1500-char budget, so it is never the first thing a clamp drops.
+
+Level labels come from the dataset, not from code: the service understands `SSC-I`, `SSC-II`, `HSSC-II`, `SSC (Matric)` and `HSSC (Intermediate)` because the boards list them, plus shorthand (`o-level`, `matric`, `inter`, `ssc ii`). A data refresh that renames a level needs no code change.
 
 ## Reminders
 
@@ -91,8 +111,10 @@ The reminder table comes from the normal DB bootstrap (`npm run bootstrap:db`).
 
 ## Customize
 
-- **New board** → one entry in `exam-fees.json` (`id`, `name`, `levels`, `per_subject_fee`, `fixed_fees`, `late_entry_surcharge`, `cities`, `source`) and, if it should be reachable by nickname, an alias in `BOARD_ALIASES` in `exam-cost.service.js`. No code change otherwise.
-- **New language** → add a `LABELS` entry (8 strings).
+- **New board** → one entry in `exam-fees.json` (`id`, `name`, `levels`, `per_subject_fee`, `fixed_fees`, `late_entry_surcharge`, `cities`, `source`) and, if it should be reachable by nickname, an alias in `BOARD_ALIASES` in `exam-cost.service.js`. No code change otherwise — new **levels** need no alias at all if a parent will type them exactly as the dataset spells them.
+- **A whole different dataset** → `EXAM_COST_DATA_DIR`.
+- **New language** → add a `LABELS` entry.
+- **How much of a board's notes reaches the parent** → `NOTES_CHARS` (200).
 - **Different urgency or reminder leads** → `URGENT_WINDOW_DAYS` / `REMINDER_LEAD_DAYS`.
 - **Different budgeting horizon** → `SESSIONS_PER_TWO_YEARS`.
 
