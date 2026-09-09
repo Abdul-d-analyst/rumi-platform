@@ -27,12 +27,21 @@
 
 const ExamCostService = require('../services/exam-cost.service');
 
-// Level spellings a parent might type, longest first so "as level" is never
-// consumed as the shorter "as".
+// Level spellings a parent might type, sorted longest-first at module load so
+// "as level" is never consumed as the shorter "as" and "ssc-ii" is never
+// consumed as "ssc-i". Covers both the Cambridge family and the Pakistani
+// board families (AKU-EB's SSC-I/HSSC-II, BISE's "SSC (Matric)"); anything
+// resolved here is handed to ExamCostService.resolveLevel, which prefers the
+// live dataset's own spelling over this list.
 const LEVEL_TOKENS = [
   'as level', 'a level', 'o level', 'as-level', 'a-level', 'o-level',
-  'aslevel', 'alevel', 'olevel', 'igcse', 'as', 'al', 'ol',
-];
+  'aslevel', 'alevel', 'olevel', 'igcse',
+  'ssc (matric)', 'hssc (intermediate)',
+  'hssc-i', 'hssc-ii', 'ssc-i', 'ssc-ii',
+  'hssc i', 'hssc ii', 'ssc i', 'ssc ii',
+  'intermediate', 'matric', 'inter', 'fsc',
+  'as', 'al', 'ol',
+].sort((a, b) => b.length - a.length);
 
 const COST_RX = /^\/?\s*(?:cost|fees?)\b/i;
 const DEADLINES_RX = /^\/?\s*deadlines?\b/i;
