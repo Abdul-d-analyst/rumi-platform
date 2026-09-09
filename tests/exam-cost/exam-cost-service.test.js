@@ -7,7 +7,16 @@
  * which IS the contract worth pinning.
  */
 
+const path = require('path');
 const ExamCostService = require('../../bot/shared/services/exam-cost.service');
+
+// Every assertion below is about the ARITHMETIC, so it runs against the frozen
+// 3-board fixture, never bot/shared/data/. The live files are a research
+// artefact that gets refreshed (fees change every session, nulls appear and
+// disappear); pinning maths to them would turn this suite red for the wrong
+// reason. exam-cost-live-data.test.js is the suite that reads the real thing.
+ExamCostService.useDataDir(path.join(__dirname, 'fixtures'));
+afterAll(() => ExamCostService.resetDataDir());
 
 const fees = ExamCostService.loadFees({ reload: true });
 const cambridge = fees.boards.find((b) => b.id === 'cambridge');
@@ -224,5 +233,164 @@ describe('exam-cost service — deadlinesDueForReminder()', () => {
   it('does not fire the day after the deadline passed', () => {
     expect(ExamCostService.deadlinesDueForReminder('cambridge', new Date('2027-02-13T00:00:00Z'))
       .some((d) => d.date === '2027-02-12')).toBe(false);
+  });
+});
+
+describe('the honesty rules, against a deliberately holey fixture', () => {
+  // The live dataset has these holes today and exam-cost-live-data.test.js
+  // asserts against it — but if the research one day fills every gap, that
+  // suite stops exercising these paths. This fixture pins them forever.
+  const NULLS = path.join(__dirname, 'fixtures-nulls');
+
+  beforeEach(() => ExamCostService.useDataDir(NULLS));
+  afterEach(() => ExamCostService.useDataDir(path.join(__dirname, 'fixtures')));
+
+  it('reports a null per_subject_fee as fee_not_published, never as 0', () => {
+    const board = ExamCostService.estimate({
+      level: 'A Level', subjects: 6, boardIds: ['cambridge'],
+    }).boards[0];
+
+    expect(board.supported).toBe(false);
+    expect(board.reason).toBe('fee_not_published');
+    expect(board.total).toBe(0);   // sentinel for callers
+    expect(board.items).toEqual([]); // …but nothing to print as a price
+  });
+
+  it('surfaces the board notes, trimmed, so AKU-EB group pricing reaches the parent', () => {
+    const board = ExamCostService.estimate({
+      level: 'SSC-II', subjects: 6, boardIds: ['aku-eb'],
+    }).boards[0];
+
+    expect(board.reason).toBe('fee_not_published');
+    // Money-first excerpt: the group prices, not the provenance paragraph.
+    expect(board.notes).toContain('SSC-II Humanities PKR 31,500');
+    expect(board.notes).toContain('Science PKR 34,800');
+    expect(board.notes.length).toBeLessThanOrEqual(ExamCostService.NOTES_CHARS + 2);
+    // Leading ellipsis marks it as an excerpt from mid-note.
+    expect(board.notes.startsWith('…')).toBe(true);
+  });
+
+  it('surfaces notes for a level the board does not list at all, too', () => {
+    const board = ExamCostService.estimate({
+      level: 'O Level', subjects: 6, boardIds: ['aku-eb'],
+    }).boards[0];
+
+    expect(board.reason).toBe('level_not_offered');
+    expect(board.notes).toContain('SSC-II Humanities PKR 31,500');
+  });
+
+  it('only ranks and compares boards with a real number', () => {
+    const result = ExamCostService.estimate({ level: 'O Level', subjects: 6 });
+
+    expect(result.anyCostable).toBe(true);
+    expect(result.boards.filter((b) => b.supported).map((b) => b.id)).toEqual(['cambridge']);
+
+    const reply = ExamCostService.formatEstimateReply(result, 'en');
+    // Costable board first, uncostable after, and no phantom price anywhere.
+    expect(reply.indexOf('Cambridge')).toBeLessThan(reply.indexOf('AKU-EB'));
+    expect(reply).not.toMatch(/PKR 0\b/);
+  });
+
+  it('reaches the buried group prices rather than the provenance paragraph', () => {
+    const notes = ExamCostService.loadFees().boards.find((b) => b.id === 'aku-eb').notes;
+    const excerpt = ExamCostService.notesExcerpt(notes);
+
+    // The prices sit past the 200-char head window, behind the sourcing prose.
+    expect(notes.indexOf('PKR 31,500')).toBeGreaterThan(ExamCostService.NOTES_CHARS);
+    expect(excerpt).toContain('PKR 31,500');
+    expect(excerpt.startsWith('…')).toBe(true);
+  });
+
+  it('notesExcerpt falls back to the head when a note carries no amount', () => {
+    const plain = `${'word '.repeat(80)}no amounts here`;
+    const excerpt = ExamCostService.notesExcerpt(plain);
+    expect(excerpt.startsWith('word word')).toBe(true);
+    expect(excerpt.endsWith('…')).toBe(true);
+    expect(excerpt.length).toBeLessThanOrEqual(ExamCostService.NOTES_CHARS + 1);
+  });
+
+  it('notesExcerpt leaves a short note alone', () => {
+    expect(ExamCostService.notesExcerpt('Fee is PKR 1,000.')).toBe('Fee is PKR 1,000.');
+    expect(ExamCostService.notesExcerpt('')).toBe('');
+    expect(ExamCostService.notesExcerpt(null)).toBe('');
+  });
+
+  it('skips a fixed fee with no published amount rather than counting it as 0', () => {
+    const board = ExamCostService.estimate({
+      level: 'O Level', subjects: 2, boardIds: ['cambridge'],
+    }).boards[0];
+
+    expect(board.items.some((i) => i.label === 'Unpublished centre charge')).toBe(false);
+    expect(board.total).toBe(32920 * 2 + 12500);
+  });
+
+  it('states an unpublished late surcharge as a caveat instead of adding 0', () => {
+    const plain = ExamCostService.estimate({
+      level: 'O Level', subjects: 6, boardIds: ['cambridge'],
+    }).boards[0];
+    const late = ExamCostService.estimate({
+      level: 'O Level', subjects: 6, boardIds: ['cambridge'], includeLate: true,
+    }).boards[0];
+
+    expect(late.total).toBe(plain.total);
+    expect(late.lateSurchargeUnknown).toBe(true);
+    expect(ExamCostService.formatEstimateReply(
+      ExamCostService.estimate({
+        level: 'O Level', subjects: 6, boardIds: ['cambridge'], includeLate: true,
+      }), 'en',
+    )).toContain('Late-entry surcharge amount not published');
+  });
+
+  it('says so plainly and points at the calculator when NO board has a number', () => {
+    const result = ExamCostService.estimate({ level: 'SSC-II', subjects: 6 });
+    expect(result.anyCostable).toBe(false);
+
+    const reply = ExamCostService.formatEstimateReply(result, 'en');
+    expect(reply).toContain('no honest total to give');
+    expect(reply).toContain(ExamCostService.CALCULATOR_URL);
+    expect(reply).not.toMatch(/PKR 0\b/);
+    expect(reply).not.toMatch(/2-year total/);
+  });
+
+  it('does not offer the calculator when it DID have an answer', () => {
+    const reply = ExamCostService.formatEstimateReply(
+      ExamCostService.estimate({ level: 'O Level', subjects: 6 }), 'en',
+    );
+    expect(reply).not.toContain(ExamCostService.CALCULATOR_URL);
+  });
+
+  it('drops a null-dated deadline and tags an estimated one', () => {
+    const all = ExamCostService.nextDeadlines(null, new Date('2026-09-09T00:00:00Z'));
+
+    expect(all).toHaveLength(2);
+    expect(all.every((d) => typeof d.date === 'string')).toBe(true);
+    expect(all.map((d) => d.estimated)).toEqual([false, true]);
+
+    const reply = ExamCostService.formatDeadlinesReply(all, 'en');
+    expect(reply).toContain('(estimated)');
+    expect(reply).not.toContain('Invalid Date');
+    expect(reply).not.toContain('NaN');
+  });
+
+  it('renders a prose fee_impact as prose, never as a currency amount', () => {
+    const all = ExamCostService.nextDeadlines('aku-eb', new Date('2026-09-09T00:00:00Z'));
+    const reply = ExamCostService.formatDeadlinesReply(all, 'en');
+
+    expect(reply).toContain('Late Penalty Stage 1 = PKR 10,000/candidate');
+    expect(reply).not.toMatch(/\/subject if you miss it/);
+  });
+
+  it('understands the Pakistani level labels the live data introduced', () => {
+    expect(ExamCostService.resolveLevel('ssc-ii')).toBe('SSC-II');
+    expect(ExamCostService.resolveLevel('SSC II')).toBe('SSC-II');
+    expect(ExamCostService.resolveLevel('hssc-ii')).toBe('HSSC-II');
+    expect(ExamCostService.datasetLevels()).toEqual(['O Level', 'A Level', 'SSC-II', 'HSSC-II']);
+  });
+
+  it('does not label a dated real dataset as a fixture', () => {
+    expect(ExamCostService.isFixture(ExamCostService.loadFees())).toBe(false);
+    expect(ExamCostService.formatEstimateReply(
+      ExamCostService.estimate({ level: 'O Level', subjects: 6 }), 'en',
+    )).toContain('as_of 2026-09-09');
   });
 });

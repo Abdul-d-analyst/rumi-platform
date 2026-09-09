@@ -6,7 +6,13 @@
  * takes for its renderer and sender).
  */
 
+const path = require('path');
+const ExamCostService = require('../../bot/shared/services/exam-cost.service');
 const worker = require('../../bot/workers/exam-deadline-reminder.worker');
+
+// Fixed deadline dates make the 14/3-day lead assertions meaningful.
+ExamCostService.useDataDir(path.join(__dirname, 'fixtures'));
+afterAll(() => ExamCostService.resetDataDir());
 
 const OPTINS = [
   { phone: '923001234567', board_id: 'cambridge' },

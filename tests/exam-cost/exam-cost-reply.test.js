@@ -6,7 +6,13 @@
  * visible while the dataset is a fixture.
  */
 
+const path = require('path');
 const ExamCostService = require('../../bot/shared/services/exam-cost.service');
+
+// Frozen fixture, same rationale as exam-cost-service.test.js: these assert the
+// SHAPE of a reply (separators, budget, block order), not today's real fees.
+ExamCostService.useDataDir(path.join(__dirname, 'fixtures'));
+afterAll(() => ExamCostService.resetDataDir());
 
 const estimateFor = (opts) => ExamCostService.estimate({ level: 'O Level', subjects: 6, ...opts });
 
@@ -48,8 +54,11 @@ describe('formatEstimateReply', () => {
   });
 
   it('always carries the as_of value and the estimate warning', () => {
-    expect(reply).toContain('as_of: FIXTURE');
+    expect(reply).toContain('as_of FIXTURE');
     expect(reply).toMatch(/Estimate only/);
+    // The footer is reserved out of the char budget, so it is never the first
+    // thing a clamp drops.
+    expect(reply.trimEnd().endsWith('(FIXTURE data)')).toBe(true);
   });
 
   it('uses no markdown a WhatsApp body cannot render', () => {
@@ -67,8 +76,9 @@ describe('formatEstimateReply', () => {
     const out = ExamCostService.formatEstimateReply(
       ExamCostService.estimate({ level: 'IGCSE', subjects: 4 }), 'en',
     );
-    expect(out).toMatch(/no IGCSE listed/);
-    expect(out).toMatch(/offers: O Level, A Level/);
+    expect(out).toMatch(/IGCSE not listed/);
+    expect(out).toMatch(/Offers: O Level, A Level/);
+    expect(out).not.toMatch(/PKR 0\b/);
   });
 
   it('shows the late surcharge as its own line when requested', () => {
@@ -142,7 +152,7 @@ describe('formatDeadlinesReply', () => {
 
   it('says so plainly when there is nothing upcoming', () => {
     const empty = ExamCostService.formatDeadlinesReply([], 'en');
-    expect(empty).toMatch(/No upcoming dates/);
+    expect(empty).toMatch(/No upcoming dated deadlines/);
     expect(empty).toContain('FIXTURE');
   });
 
@@ -159,7 +169,9 @@ describe('formatDeadlinesReply', () => {
     }));
     const out = ExamCostService.formatDeadlinesReply(many, 'en');
     expect(out.length).toBeLessThanOrEqual(ExamCostService.MAX_REPLY_CHARS);
-    expect(out.endsWith('…')).toBe(true);
+    expect(out).toContain('…');
+    // The as_of footer survives the clamp — it is reserved out of the budget.
+    expect(out.trimEnd().endsWith('FIXTURE data)')).toBe(true);
   });
 });
 

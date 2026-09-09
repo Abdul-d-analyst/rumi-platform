@@ -5,7 +5,14 @@
  * just "what would the bot do with this message".
  */
 
+const path = require('path');
+const ExamCostService = require('../../bot/shared/services/exam-cost.service');
 const { parseExamCostCommand } = require('../../bot/shared/handlers/exam-cost-trigger');
+
+// The parser resolves board and level names against whichever dataset is
+// active, so pin it to the fixture for a deterministic grammar test.
+ExamCostService.useDataDir(path.join(__dirname, 'fixtures'));
+afterAll(() => ExamCostService.resetDataDir());
 
 describe('parseExamCostCommand — the documented cost command', () => {
   it('parses the canonical example', () => {
