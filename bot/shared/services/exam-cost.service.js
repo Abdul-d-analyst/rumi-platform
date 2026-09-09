@@ -666,13 +666,15 @@ function formatDeadlinesReply(deadlines, language = 'en', { asOf } = {}) {
     body.push(`confidence: ${d.confidence}`);
   }
 
-  const footer = stamp === 'FIXTURE'
-    ? `\n⚠️ ${L.estimate} · as_of ${stamp} (FIXTURE data)`
-    : `\nas_of ${stamp}`;
+  // Reserved out of the budget, same as the cost reply's footer, so a clamp
+  // cannot drop the as_of stamp.
+  const footText = ['', stamp === 'FIXTURE'
+    ? `⚠️ ${L.estimate} · as_of ${stamp} (FIXTURE data)`
+    : `as_of ${stamp}`].join('\n');
 
   const headText = head.join('\n');
-  const bodyText = clampLines(body, MAX_REPLY_CHARS - headText.length - footer.length - 2).text;
-  return `${headText}\n${bodyText}\n${footer.trim()}`;
+  const bodyText = clampLines(body, MAX_REPLY_CHARS - headText.length - footText.length - 2).text;
+  return `${headText}\n${bodyText}\n${footText}`;
 }
 
 /** One reminder message for one deadline. */
