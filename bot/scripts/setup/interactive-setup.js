@@ -46,11 +46,12 @@ const validators = require('./validators');
 const dbSetup = require('./db-setup');
 const fields = require('./fields');
 const summary = require('./summary');
+const { askTelemetryConsent } = require('./telemetry-consent');
 
 const ROOT = path.resolve(__dirname, '../../..');
 const ENV_PATH = path.join(ROOT, '.env');
 const ENV_TEMPLATE_PATH = path.join(ROOT, '.env.template');
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 const LOCAL_REDIS = { url: 'redis://localhost:6379', container: 'rumi-redis', image: 'redis:7-alpine' };
 
 // ── Shared plumbing ──────────────────────────────────────────────────────────
@@ -939,6 +940,24 @@ async function finish(env, channelResult) {
   }
 }
 
+// ── Step 7: sharing usage stats ──────────────────────────────────────────────
+
+/**
+ * Asks whether this deployment may share three counts a day with the project.
+ *
+ * Last, deliberately: by this point Rumi is working, so the question is being
+ * asked of someone who has something to share rather than someone still
+ * deciding whether to bother. Skipped on a re-run once answered — being asked
+ * again every time you resume setup reads as pestering, and `--reconfigure`
+ * is there for changing your mind.
+ */
+async function stepTelemetry(io, env, save, opts = {}) {
+  if (env.RUMI_TELEMETRY && !opts.reconfigure) return { shared: env.RUMI_TELEMETRY === 'on', skipped: true };
+
+  beginStep(7, 'Helping Rumi get better');
+  return askTelemetryConsent(io, env, save);
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 async function main(argv = process.argv) {
@@ -970,6 +989,8 @@ async function main(argv = process.argv) {
     const channelResult = await stepChannel(io, env, save, opts);
     finishStep('Connecting WhatsApp');
     const messagingResult = await stepMessagingChannels(io, env, save, opts);
+    finishStep('Other places teachers can reach Rumi');
+    await stepTelemetry(io, env, save, opts);
 
     await finish(env, { ...channelResult, ...messagingResult });
   } catch (err) {
@@ -993,6 +1014,7 @@ if (require.main === module) {
 module.exports = {
   main, welcome, finish,
   stepDatabase, stepBrain, stepMemory, stepExtras, stepChannel, stepMessagingChannels, stepDiscordChannel,
+  stepTelemetry,
   ensureTables, chooseChannelDriver, collectMetaCredentials, linkSandbox, channelAlreadyWorking,
   createSaver, hasAll, isProvided, prefill, isTemplateSuggestion, startLocalRedis, dockerAvailable, probe,
   beginStep, finishStep, walkSlackAppConfig, walkDiscordAppConfig,

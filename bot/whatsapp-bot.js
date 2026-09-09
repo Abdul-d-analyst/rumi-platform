@@ -1994,6 +1994,8 @@ ${'='.repeat(70)}
     logToFile('flow_id.validator.crashed', { error: err.message, severity: 'warn' });
   });
 
+  const TELEMETRY_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
   // Non-blocking startup checks (delayed to not slow boot)
   setTimeout(() => {
     try {
@@ -2011,6 +2013,20 @@ ${'='.repeat(70)}
       checkForUpdates(version).catch(() => {});
     } catch (err) {
       // version-check is optional — skip silently if not present
+    }
+
+    // Opt-in usage stats: three counts a day, and only if the operator said
+    // yes during `rumi setup`. .unref() is load-bearing — an interval that
+    // keeps the event loop alive would stop the process ever exiting.
+    try {
+      const { isTelemetryEnabled, sendDailyStats } = require('./shared/utils/telemetry');
+      if (isTelemetryEnabled(process.env)) {
+        const postStats = () => sendDailyStats({ env: process.env, version, supabase }).catch(() => {});
+        postStats();
+        setInterval(postStats, TELEMETRY_INTERVAL_MS).unref();
+      }
+    } catch (err) {
+      // telemetry is optional — skip silently if not present
     }
   }, 10000);
   });
