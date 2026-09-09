@@ -628,8 +628,10 @@ function _trimToWords(text, max = MAX_SCRIPT_WORDS) {
 function fallbackScript(finalFeedback) {
   const first = finalFeedback?.edits?.[0];
   const parts = [
-    `Start with this: "${finalFeedback?.praise || 'I really liked reading this.'}"`,
-    'Let that land. Then:',
+    // No quotes around the praise: it often contains quoted words of the
+    // child's own, and nested quotes read as a typo on WhatsApp.
+    `Open with the praise — ${finalFeedback?.praise || 'tell them you really liked reading this'}.`,
+    'Let that land. Then ask:',
     first
       ? `"Can we look at one bit together — where you wrote ${first.what || 'this part'}? What do you think we could try?"`
       : '"Can we look at one small bit together? What do you think we could try?"',
