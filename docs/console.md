@@ -4,10 +4,17 @@ A web page for running Rumi without a terminal: what is connected, what is switc
 layer of the pipeline is doing, and what to paste where.
 
 ```
-rumi start                       → http://localhost:3000/console
+rumi start                       → http://localhost:3000/console  (opens in your browser)
+rumi start --no-open             → same, without the browser
 rumi console                     → http://127.0.0.1:4173/console  (when the bot won't start)
 rumi console --set-password      → required before it will open on a public deployment
 ```
+
+`rumi start` waits until the bot is actually serving, then opens the console in your default browser —
+polling its health endpoint first, so the tab never lands on a connection error. It does this only where
+it makes sense: not on a hosted deployment (there is no browser there, and the console is locked anyway),
+not from a non-interactive shell such as CI or a supervisor, and not if you pass `--no-open` or set
+`RUMI_NO_OPEN=1`. If your machine has no way to open a URL, nothing happens and the banner still prints it.
 
 ---
 
@@ -138,6 +145,7 @@ it, and the file is re-read after writing to confirm the value survived the roun
 | `CONSOLE_RING_SIZE` | How many events to keep in memory (200–20000, default 2000) |
 | `ADMIN_PASSWORD_HASH` | bcrypt hash; set it with `rumi console --set-password` |
 | `SESSION_SECRET` | Signs console sessions; generated for you |
+| `RUMI_NO_OPEN` | `1` stops `rumi start` opening the console in a browser |
 | `RUMI_FEATURE_<ID>=off` | Switches one feature off — see the Features page |
 
 ---

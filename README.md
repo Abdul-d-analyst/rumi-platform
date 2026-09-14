@@ -123,13 +123,14 @@ added later by setting its key. Each is documented in [`.env.template`](.env.tem
 
 If `install.sh` could not put `rumi` on your PATH, `node bin/rumi.js <command>` is identical.
 
-**Prefer a screen to a terminal?** Once Rumi is running, open **<http://localhost:3000/console>**. The
+**Prefer a screen to a terminal?** `rumi start` opens it for you — or go to
+**<http://localhost:3000/console>** yourself. The
 console shows whether every service is answering, which features are on and which key each one is waiting
 for, the speech-to-text → AI → text-to-speech pipeline with the model behind each layer, and a live feed of
 what Rumi is doing right now. You can set any key there instead of editing `.env`, with the same "where do I
 get this" links the wizard gives you and a **Test connection** button on each one. It opens without a
-password on your own machine, and stays locked anywhere else until you set one. Full details:
-**[docs/console.md](docs/console.md)**.
+password on your own machine, and stays locked anywhere else until you set one. (`rumi start --no-open`
+if you would rather it did not.) Full details: **[docs/console.md](docs/console.md)**.
 
 **Would rather not type it yourself?** Open the repo in a coding agent (Claude Code, Cursor, Codex) and say
 *"set me up"* — it walks you through the same sequence in conversation, following the
