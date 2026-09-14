@@ -22,7 +22,7 @@ afterEach(() => {
 describe('rumi CLI dispatcher', () => {
   it('exposes exactly the documented commands', () => {
     const { COMMANDS } = loadCli();
-    expect(Object.keys(COMMANDS).sort()).toEqual(['brief', 'doctor', 'graduate', 'pair', 'setup', 'start', 'status']);
+    expect(Object.keys(COMMANDS).sort()).toEqual(['brief', 'console', 'doctor', 'graduate', 'pair', 'setup', 'start', 'status']);
   });
 
   it('gives every command a one-line summary, since the help screen is built from them', () => {

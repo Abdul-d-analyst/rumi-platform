@@ -4,6 +4,7 @@
  *
  *   rumi setup       connect Rumi to your accounts (start here)
  *   rumi status       is Rumi running, and what is switched on
+ *   rumi console      the web console — settings, health and live activity
  *   rumi doctor       check every connection in detail
  *   rumi pair         link (or re-link) WhatsApp
  *   rumi graduate     move to an official WhatsApp Business number
@@ -110,6 +111,23 @@ const COMMANDS = {
       const result = await runDoctor({});
       console.log(formatReport(result));
       process.exitCode = result.ok ? 0 : 1;
+    },
+  },
+  console: {
+    summary: 'Open the web console (works even when the bot will not start)',
+    run: async () => {
+      loadEnv();
+      const args = process.argv.slice(3);
+      if (args.includes('--set-password')) {
+        return require(path.join(SCRIPTS_DIR, 'console-password')).main();
+      }
+      const portArg = args.find((a) => a.startsWith('--port='));
+      await require(path.join(BOT_DIR, 'console', 'server')).start({
+        port: portArg ? Number(portArg.split('=')[1]) : undefined,
+      });
+      // The server owns the process from here — `rumi console` is a thing you
+      // leave running, like `rumi start`.
+      return new Promise(() => {});
     },
   },
   pair: {
