@@ -23,5 +23,6 @@
   ],
   "migrations_path": "dashboard/database/migrations",
   "migration_file_glob": "*.sql",
-  "migration_command": null
+  "_migration_command_note": "dashboard/database/migrations/ is NOT self-sufficient — it's a set of incremental deltas layered on top of the base schema in infrastructure/supabase/00_complete-schema.sql (confirmed live: applying migrations/ alone to an empty throwaway Postgres fails immediately with 'relation \"conversations\" does not exist', since that table — and most of the core schema — is only defined in 00_complete-schema.sql, never inside migrations/ itself). migration_command therefore applies the real base schema first, RLS policies second, then every incremental migration in filename order.",
+  "migration_command": "for f in infrastructure/supabase/00_complete-schema.sql infrastructure/supabase/01_rls-policies.sql; do psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f \"$f\" || exit 1; done; for f in dashboard/database/migrations/*.sql; do psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f \"$f\" || exit 1; done"
 }

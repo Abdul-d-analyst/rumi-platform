@@ -161,10 +161,17 @@ jobs:
         run: |
           set +e
           cd /tmp/base-worktree
-          timeout 300 python3 "${GITHUB_WORKSPACE}/${{ steps.pack.outputs.path }}/scripts/migrate.py" \
-            --dsn "postgresql://postgres:postgres@localhost:5432/base_db" \
-            --migrations-path "$(python3 -c "import json; print(json.load(open('${GITHUB_WORKSPACE}/.data-quality-gate/scope.json')).get('migrations_path','migrations'))")" \
-            --file-glob "$(python3 -c "import json; print(json.load(open('${GITHUB_WORKSPACE}/.data-quality-gate/scope.json')).get('migration_file_glob','*.sql'))")"
+          MIGRATION_COMMAND="$(python3 -c "import json; print(json.load(open('${GITHUB_WORKSPACE}/.data-quality-gate/scope.json')).get('migration_command') or '')")"
+          if [ -n "$MIGRATION_COMMAND" ]; then
+            timeout 300 python3 "${GITHUB_WORKSPACE}/${{ steps.pack.outputs.path }}/scripts/migrate.py" \
+              --dsn "postgresql://postgres:postgres@localhost:5432/base_db" \
+              --migration-command "$MIGRATION_COMMAND"
+          else
+            timeout 300 python3 "${GITHUB_WORKSPACE}/${{ steps.pack.outputs.path }}/scripts/migrate.py" \
+              --dsn "postgresql://postgres:postgres@localhost:5432/base_db" \
+              --migrations-path "$(python3 -c "import json; print(json.load(open('${GITHUB_WORKSPACE}/.data-quality-gate/scope.json')).get('migrations_path','migrations'))")" \
+              --file-glob "$(python3 -c "import json; print(json.load(open('${GITHUB_WORKSPACE}/.data-quality-gate/scope.json')).get('migration_file_glob','*.sql'))")"
+          fi
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
@@ -174,10 +181,17 @@ jobs:
         id: migrate_head
         run: |
           set +e
-          timeout 300 python3 "${{ steps.pack.outputs.path }}/scripts/migrate.py" \
-            --dsn "postgresql://postgres:postgres@localhost:5433/head_db" \
-            --migrations-path "$(python3 -c "import json; print(json.load(open('.data-quality-gate/scope.json')).get('migrations_path','migrations'))")" \
-            --file-glob "$(python3 -c "import json; print(json.load(open('.data-quality-gate/scope.json')).get('migration_file_glob','*.sql'))")"
+          MIGRATION_COMMAND="$(python3 -c "import json; print(json.load(open('.data-quality-gate/scope.json')).get('migration_command') or '')")"
+          if [ -n "$MIGRATION_COMMAND" ]; then
+            timeout 300 python3 "${{ steps.pack.outputs.path }}/scripts/migrate.py" \
+              --dsn "postgresql://postgres:postgres@localhost:5433/head_db" \
+              --migration-command "$MIGRATION_COMMAND"
+          else
+            timeout 300 python3 "${{ steps.pack.outputs.path }}/scripts/migrate.py" \
+              --dsn "postgresql://postgres:postgres@localhost:5433/head_db" \
+              --migrations-path "$(python3 -c "import json; print(json.load(open('.data-quality-gate/scope.json')).get('migrations_path','migrations'))")" \
+              --file-glob "$(python3 -c "import json; print(json.load(open('.data-quality-gate/scope.json')).get('migration_file_glob','*.sql'))")"
+          fi
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
