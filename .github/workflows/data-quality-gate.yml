@@ -120,9 +120,10 @@ jobs:
             echo "base=${{ github.event.merge_group.base_sha }}" >> "$GITHUB_OUTPUT"
             echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # DRY-RUN ONLY: compare the tip against its own immediate parent so
-            # there's a real, non-empty diff to exercise the full pipeline against.
-            echo "base=$(git rev-parse HEAD~1)" >> "$GITHUB_OUTPUT"
+            # DRY-RUN ONLY: compare against the real pre-skills-push commit so
+            # this exercises applying ALL of dashboard/database/migrations/'s
+            # real history end to end, not just one trivial test-triggered diff.
+            echo "base=ef1dd76" >> "$GITHUB_OUTPUT"
             echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
           else
             echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
