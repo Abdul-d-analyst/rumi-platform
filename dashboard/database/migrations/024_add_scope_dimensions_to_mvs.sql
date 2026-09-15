@@ -202,3 +202,5 @@ LIMIT 10;
 -- Check country stats view
 SELECT * FROM mv_dashboard_stats_by_country
 ORDER BY total_users DESC;
+
+-- CI dry-run trigger marker, no-op
