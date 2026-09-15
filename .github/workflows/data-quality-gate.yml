@@ -65,7 +65,7 @@ jobs:
 
     services:
       postgres_base:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: base_db
@@ -76,7 +76,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       postgres_head:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: head_db
