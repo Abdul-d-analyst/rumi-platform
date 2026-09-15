@@ -1,0 +1,27 @@
+{
+  "_comment": "Scope-detection config for the Data Quality Gate (distinct from data-standards' .data-standards.json). Read by .claude/skills/data-quality-gate/scripts/scope_detect.py, stdlib-only, no PyYAML/psycopg needed for this step so an irrelevant PR returns NOT_APPLICABLE cheaply and fast.",
+  "include": [
+    "**/*.sql",
+    "**/migrations/**",
+    "**/*migration*.py",
+    "**/db/migrate/**",
+    "**/schema.prisma",
+    ".data-quality-gate/**"
+  ],
+  "exclude": [
+    ".git/**",
+    "node_modules/**",
+    "vendor/**",
+    ".venv/**",
+    "venv/**",
+    "dist/**",
+    "build/**",
+    "__pycache__/**",
+    "*.lock",
+    "dashboard/database/migrations/test_connection.sql",
+    "dashboard/database/migrations/test_migration_20251107.sql"
+  ],
+  "migrations_path": "dashboard/database/migrations",
+  "migration_file_glob": "*.sql",
+  "migration_command": null
+}
