@@ -49,6 +49,11 @@ on:
     types: [opened, reopened, synchronize]
   merge_group:
     types: [checks_requested]
+  # DRY-RUN ONLY — remove before proposing this file for real. workflow_dispatch
+  # exists purely so this can be manually triggered against real history from a
+  # fork, where pull_request events don't reliably fire for a workflow that was
+  # only just added on this same branch/fork.
+  workflow_dispatch: {}
 
 jobs:
   data-quality-gate:
@@ -113,6 +118,11 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "merge_group" ]; then
             echo "base=${{ github.event.merge_group.base_sha }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # DRY-RUN ONLY: compare the tip against its own immediate parent so
+            # there's a real, non-empty diff to exercise the full pipeline against.
+            echo "base=$(git rev-parse HEAD~1)" >> "$GITHUB_OUTPUT"
             echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
           else
             echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
