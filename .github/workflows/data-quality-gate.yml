@@ -228,7 +228,7 @@ jobs:
               "commit": "${{ steps.refs.outputs.head }}",
               "baseline_sha": "${{ steps.refs.outputs.base }}",
               "actor": "${{ github.actor }}",
-              "pr": "${{ github.event.pull_request.html_url or '' }}",
+              "pr": "${{ github.event.pull_request.html_url || '' }}",
               "result": report.get("result"),
           }
           print(append_audit_record(record, Path(".data-quality-gate/audit-log.jsonl")))
@@ -248,7 +248,7 @@ jobs:
               repo="${{ github.repository }}", branch="${{ github.head_ref || github.ref_name }}",
               head_sha="${{ steps.refs.outputs.head }}", base_sha="${{ steps.refs.outputs.base }}",
               result=report.get("result", "ERROR"), actor="${{ github.actor }}",
-              pr="${{ github.event.pull_request.html_url or '' }}",
+              pr="${{ github.event.pull_request.html_url || '' }}",
               changed_objects=[f.get("table","") for f in findings],
               issue_ids=issue_ids, severity_counts=severity_counts, report_ref=None,
           ))
