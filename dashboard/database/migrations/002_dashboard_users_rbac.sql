@@ -66,4 +66,4 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON dashboard_audit_log(creat
 
 -- Grant permissions
 GRANT ALL ON dashboard_users TO service_role;
-GRANT ALL ON dashboard_audit_log TO service_role;
+GRANT ALL ON dashboard_audit_log TO service_role;-- realistic PR test: trivial change touching an already-violating file
