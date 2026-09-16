@@ -204,3 +204,4 @@ SELECT * FROM mv_dashboard_stats_by_country
 ORDER BY total_users DESC;
 
 -- CI dry-run trigger marker, no-op
+-- trigger check, will be reverted before real PR
