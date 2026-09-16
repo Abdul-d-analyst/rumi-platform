@@ -311,6 +311,13 @@ jobs:
 
       - name: Post or update the PR comment
         if: always() && github.event_name == 'pull_request'
+        # continue-on-error: a pull_request event from a fork always gets a
+        # read-only GITHUB_TOKEN on the base repo regardless of the
+        # `permissions:` block above (GitHub Actions security default) — this
+        # step 403s for any cross-fork PR. The report artifact and "Gate on
+        # the result" already fully gate the PR either way; a missing inline
+        # comment on a fork PR is a cosmetic gap, not a blocking one.
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |
